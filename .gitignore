@@ -9,3 +9,12 @@ build
 *.log
 .DS_Store
 
+# Python & Virtualenv
+__pycache__/
+*.pyc
+backend/venv/
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+backend/storage/*.sqlite3
+.pytest_cache/
+

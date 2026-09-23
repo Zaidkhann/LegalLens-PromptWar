@@ -1,35 +1,54 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   ChevronLeft, 
   ChevronRight, 
   ZoomIn, 
   ZoomOut, 
-  Search, 
-  Maximize2,
-  Bookmark,
-  Sparkles
+  FileCheck
 } from 'lucide-react';
 
+export interface DocumentPageData {
+  page_number: number;
+  text: string;
+  section_info?: string | null;
+}
+
+export interface DocumentContentData {
+  document_id: string;
+  title: string;
+  file_type: string;
+  page_count: number;
+  pages: DocumentPageData[];
+}
+
 interface DocumentViewerProps {
+  document?: DocumentContentData | null;
   highlightedSection?: string | null;
 }
 
-export function DocumentViewer({ highlightedSection }: DocumentViewerProps) {
-  const [currentPage, setCurrentPage] = useState(4);
-  const totalPages = 8;
+export function DocumentViewer({ document, highlightedSection }: DocumentViewerProps) {
+  const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(100);
+
+  // Reset to page 1 whenever a new document is loaded
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [document?.document_id]);
+
+  const totalPages = document?.page_count || 1;
+  const activePageData = document?.pages?.[currentPage - 1];
 
   return (
     <div className="flex flex-col h-full bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
       {/* Document Control Toolbar */}
       <div className="flex items-center justify-between px-4 py-3 bg-slate-950 border-b border-slate-800 text-xs text-slate-300">
         <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-brand-400" />
-          <span className="font-medium text-slate-200 truncate max-w-[180px]">
-            Residential_Lease_Agreement_2026.pdf
+          <FileText className="w-4 h-4 text-brand-400 shrink-0" />
+          <span className="font-medium text-slate-200 truncate max-w-[200px]" title={document?.title || "Document Viewer"}>
+            {document?.title ? `${document.title}.${document.file_type}` : "Document Canvas"}
           </span>
         </div>
 
@@ -37,8 +56,8 @@ export function DocumentViewer({ highlightedSection }: DocumentViewerProps) {
         <div className="flex items-center gap-2 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="p-1 hover:text-white disabled:opacity-40"
+            disabled={currentPage <= 1}
+            className="p-1 hover:text-white disabled:opacity-40 transition-opacity"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
@@ -47,8 +66,8 @@ export function DocumentViewer({ highlightedSection }: DocumentViewerProps) {
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="p-1 hover:text-white disabled:opacity-40"
+            disabled={currentPage >= totalPages}
+            className="p-1 hover:text-white disabled:opacity-40 transition-opacity"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -66,52 +85,44 @@ export function DocumentViewer({ highlightedSection }: DocumentViewerProps) {
         </div>
       </div>
 
-      {/* Main Canvas Placeholder */}
+      {/* Main Canvas with Extracted Text */}
       <div className="flex-1 overflow-y-auto p-6 bg-slate-950/60 flex justify-center items-start">
         <div 
-          className="w-full max-w-2xl bg-white text-slate-900 rounded-lg shadow-2xl p-8 space-y-6 text-xs leading-relaxed font-serif transition-transform duration-200"
+          className="w-full max-w-2xl bg-white text-slate-900 rounded-lg shadow-2xl p-8 space-y-6 text-xs leading-relaxed transition-transform duration-200"
           style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
         >
-          {/* Header of simulated PDF sheet */}
-          <div className="border-b border-slate-200 pb-4 flex justify-between items-center text-[10px] font-sans text-slate-500">
-            <span>RESIDENTIAL LEASE AGREEMENT</span>
-            <span>SECTION VIII: TERMINATION & REMEDIES</span>
+          {/* Header of sheet */}
+          <div className="border-b border-slate-200 pb-3 flex justify-between items-center text-[10px] font-sans text-slate-500 uppercase tracking-wider">
+            <span className="truncate max-w-[280px]">{document?.title || "LEGAL DOCUMENT"}</span>
+            <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-mono">
+              {document?.file_type ? document.file_type.toUpperCase() : "RAW TEXT"}
+            </span>
           </div>
 
-          <div className="space-y-4 font-sans text-slate-800 text-[11px]">
-            <h3 className="font-bold text-sm text-slate-900 border-b border-slate-200 pb-1">
-              CLAUSE 8.1 - EXPIRATION AND RENEWAL
-            </h3>
-            <p>
-              This Agreement shall automatically renew for successive terms of twelve (12) months unless either party provides written notice of intent not to renew no less than ninety (90) calendar days prior to the expiration of the current term.
-            </p>
-
-            {/* Highlighted section simulating interactive citation linking */}
-            <div className={`p-3.5 rounded-lg border transition-all ${
-              highlightedSection === '8.2' || !highlightedSection
-                ? 'bg-amber-100/90 border-amber-400 text-amber-950 shadow-md ring-2 ring-amber-400/40'
-                : 'bg-slate-50 border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between text-[10px] font-bold text-amber-900 mb-1">
-                <span>CLAUSE 8.2 - EARLY TERMINATION & PENALTIES</span>
-                <span className="bg-amber-500 text-white px-1.5 py-0.5 rounded text-[9px] font-mono">CITATED IN LEGALLENS</span>
-              </div>
-              <p className="font-serif text-[11px] leading-relaxed">
-                &quot;Lessee agrees that in the event of early termination prior to the expiration of the term, Lessee shall forfeit the entirety of the Security Deposit ($4,800) and remain liable for 60 days of liquidated damages...&quot;
-              </p>
+          {/* Section Info Banner if present */}
+          {activePageData?.section_info && (
+            <div className="px-3 py-1.5 rounded bg-brand-50 border border-brand-200 text-brand-900 font-semibold text-[11px] font-sans">
+              {activePageData.section_info}
             </div>
+          )}
 
-            <h3 className="font-bold text-sm text-slate-900 border-b border-slate-200 pb-1 pt-2">
-              CLAUSE 8.3 - MAINTENANCE & ALTERATIONS
-            </h3>
-            <p>
-              The Lessee shall not make any structural alterations, paint, or install permanent fixtures without prior written consent from the Lessor. Minor maintenance expenses under $100 shall be the responsibility of the Lessee.
-            </p>
+          {/* Extracted Page Body */}
+          <div className="space-y-4 font-sans text-slate-800 text-[12px] whitespace-pre-wrap leading-relaxed min-h-[350px]">
+            {activePageData?.text ? (
+              activePageData.text
+            ) : (
+              <div className="text-slate-400 italic text-center py-12">
+                No extracted text available for Page {currentPage}.
+              </div>
+            )}
           </div>
 
-          <div className="pt-6 border-t border-slate-200 flex justify-between text-[10px] font-sans text-slate-400">
-            <span>Page 4 of 8</span>
-            <span>CONFIDENTIAL - EXECUTED COPY</span>
+          {/* Page Footer */}
+          <div className="pt-6 border-t border-slate-200 flex justify-between items-center text-[10px] font-sans text-slate-400">
+            <span>Page {currentPage} of {totalPages}</span>
+            <span className="flex items-center gap-1 text-slate-500">
+              <FileCheck className="w-3 h-3 text-emerald-600" /> Grounded Text Layer
+            </span>
           </div>
         </div>
       </div>
