@@ -27,9 +27,10 @@ export interface DocumentContentData {
 interface DocumentViewerProps {
   document?: DocumentContentData | null;
   highlightedSection?: string | null;
+  targetPage?: number | null;
 }
 
-export function DocumentViewer({ document, highlightedSection }: DocumentViewerProps) {
+export function DocumentViewer({ document, highlightedSection, targetPage }: DocumentViewerProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(100);
 
@@ -37,6 +38,13 @@ export function DocumentViewer({ document, highlightedSection }: DocumentViewerP
   useEffect(() => {
     setCurrentPage(1);
   }, [document?.document_id]);
+
+  // Navigate to targetPage when passed (e.g. from citation click)
+  useEffect(() => {
+    if (targetPage && targetPage >= 1 && targetPage <= (document?.page_count || 1)) {
+      setCurrentPage(targetPage);
+    }
+  }, [targetPage, document?.page_count]);
 
   const totalPages = document?.page_count || 1;
   const activePageData = document?.pages?.[currentPage - 1];

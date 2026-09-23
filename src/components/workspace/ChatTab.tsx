@@ -1,92 +1,223 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, 
   Sparkles, 
   Bot, 
   User, 
   ExternalLink, 
-  HelpCircle,
   ShieldCheck,
-  CornerDownRight
+  CornerDownRight,
+  Loader2,
+  AlertCircle,
+  FileSearch,
+  CheckCircle2,
+  HelpCircle,
+  Info
 } from 'lucide-react';
 
-interface ChatTabProps {
-  onSelectCitation?: (page: number, sectionId: string) => void;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+export interface SourceCitation {
+  page_number: number;
+  section?: string | null;
+  excerpt: string;
+  relevance?: number | null;
 }
 
-export function ChatTab({ onSelectCitation }: ChatTabProps) {
-  const [messages, setMessages] = useState<Array<{
-    id: string;
-    sender: 'user' | 'ai';
-    text: string;
-    citation?: { page: number; section: string };
-  }>>([
-    {
-      id: '1',
-      sender: 'ai',
-      text: 'Hello! I am your LegalLens document assistant. You can ask any question about this Residential Lease Agreement, such as termination penalties, rent payment grace periods, or repair obligations.',
-    },
-    {
-      id: '2',
-      sender: 'user',
-      text: 'When can this agreement be terminated and what is the penalty?',
-    },
-    {
-      id: '3',
-      sender: 'ai',
-      text: 'According to Section 8.2 of the agreement, you may terminate early; however, doing so results in forfeiture of your full $4,800 security deposit plus 60 days of liquidated damages. If you intend not to renew at the end of the 2-year term, you must provide written notice 90 days prior to expiration (Section 8.1).',
-      citation: { page: 4, section: '8.2' },
-    },
-  ]);
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'ai';
+  text: string;
+  keyPoints?: string[];
+  citations?: SourceCitation[];
+  notFound?: boolean;
+  error?: boolean;
+  timestamp: string;
+}
 
+interface ChatTabProps {
+  documentId?: string;
+  onSelectCitation?: (page: number, sectionId: string) => void;
+  analysisData?: any;
+}
+
+const DEFAULT_SUGGESTED_QUESTIONS = [
+  "What is the termination condition?",
+  "What are my payment obligations?",
+  "How long does this agreement last?",
+  "What happens if I miss a payment?",
+  "Who is responsible for repairs or maintenance?",
+  "Are there any important deadlines?"
+];
+
+export function ChatTab({ documentId, onSelectCitation, analysisData }: ChatTabProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<string>('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const suggestedQuestions = [
-    'How much do I have to pay for security deposit?',
-    'What happens if I pay rent late?',
-    'Is subletting allowed?',
-    'Who pays for routine repair expenses?',
-  ];
+  // Initialize initial welcome message
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([
+        {
+          id: 'welcome-1',
+          sender: 'ai',
+          text: 'Hello! I am your LegalLens grounded document assistant. Ask any question about this legal document and I will answer strictly using its text with exact page citations.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    }
+  }, [messages.length]);
 
-  const handleSend = (textToSend?: string) => {
-    const text = textToSend || input;
-    if (!text.trim()) return;
+  // Scroll to bottom of message list on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
 
-    const userMsg = { id: Date.now().toString(), sender: 'user' as const, text };
-    const aiPlaceholder = {
-      id: (Date.now() + 1).toString(),
-      sender: 'ai' as const,
-      text: 'Grounded AI reasoning simulated placeholder: The rental agreement states in Section 3.1 that rent is due on the 1st of each month with a 5-day grace period ending on the 5th.',
-      citation: { page: 2, section: '3.1' },
-    };
+  // Build suggested questions dynamically from document analysis if available
+  const getSuggestedQuestions = (): string[] => {
+    if (!analysisData) return DEFAULT_SUGGESTED_QUESTIONS;
+    const suggestions: string[] = [];
 
-    setMessages((prev) => [...prev, userMsg, aiPlaceholder]);
-    setInput('');
+    if (analysisData.overview?.important_obligations?.length) {
+      suggestions.push("What are my main obligations under this contract?");
+    }
+    if (analysisData.attention_signals?.length) {
+      suggestions.push("What potential risks or attention signals exist?");
+    }
+    if (analysisData.important_clauses?.length) {
+      suggestions.push("What are the key termination conditions?");
+    }
+    if (analysisData.important_dates?.length) {
+      suggestions.push("What are the important dates and deadlines?");
+    }
+
+    if (suggestions.length < 4) {
+      DEFAULT_SUGGESTED_QUESTIONS.forEach(q => {
+        if (!suggestions.includes(q) && suggestions.length < 5) {
+          suggestions.push(q);
+        }
+      });
+    }
+
+    return suggestions.slice(0, 5);
   };
 
+  const handleSend = async (textToSend?: string) => {
+    const questionText = (textToSend || input).trim();
+    if (!questionText || loading) return;
+
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: questionText,
+      timestamp: timeStr,
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
+    setLoadingStage('Searching your document...');
+
+    // Loading UX sequence simulation
+    const stageTimer1 = setTimeout(() => setLoadingStage('Analyzing relevant clauses...'), 1200);
+    const stageTimer2 = setTimeout(() => setLoadingStage('Generating grounded answer...'), 2600);
+
+    try {
+      // Demo fallback if no real documentId present
+      if (!documentId || documentId === 'demo-doc-1') {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const demoAiMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ai',
+          text: 'According to Section 2.1 of the agreement, rent is $2,400 per month payable on the 1st of each month. A late payment penalty fee of $100 applies after 5 calendar days.',
+          keyPoints: ['Rent amount: $2,400/month due on the 1st', '5-day grace period before late penalty', '$100 fee applies after grace period'],
+          citations: [
+            {
+              page_number: 2,
+              section: 'Clause 2.1',
+              excerpt: 'Rent is $2,400 per month payable on the 1st of each month. Late payment incurs a $100 penalty fee after 5 calendar days.',
+              relevance: 0.95,
+            },
+          ],
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, demoAiMsg]);
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/v1/documents/${documentId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: questionText }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to generate answer from document.');
+      }
+
+      const data = await res.json();
+
+      const aiMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: data.answer,
+        keyPoints: data.key_points || [],
+        citations: data.citations || [],
+        notFound: data.not_found || false,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (err: any) {
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: err.message || 'An error occurred while answering your question. Please try again.',
+        error: true,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
+      setLoading(false);
+      setLoadingStage('');
+    }
+  };
+
+  const suggestedQuestions = getSuggestedQuestions();
+
   return (
-    <div className="flex flex-col h-[600px] bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
+    <div className="flex flex-col h-[640px] bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
       {/* Header Banner */}
       <div className="px-4 py-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs">
         <div className="flex items-center gap-2 text-slate-300">
           <Sparkles className="w-4 h-4 text-brand-400" />
           <span className="font-bold text-white">Ask Your Document</span>
         </div>
-        <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-          <ShieldCheck className="w-3.5 h-3.5" /> Grounded in Page Citations
+        <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+          <ShieldCheck className="w-3.5 h-3.5" /> Grounded RAG with Page Citations
         </span>
       </div>
 
       {/* Suggested Questions Pills */}
-      <div className="p-3 bg-slate-950/50 border-b border-slate-800/80 flex items-center gap-2 overflow-x-auto scrollbar-none">
-        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Suggested:</span>
+      <div className="p-3 bg-slate-950/60 border-b border-slate-800/80 flex items-center gap-2 overflow-x-auto scrollbar-none">
+        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+          <HelpCircle className="w-3 h-3 text-slate-400" /> Suggested:
+        </span>
         {suggestedQuestions.map((q, idx) => (
           <button
             key={idx}
             onClick={() => handleSend(q)}
-            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] whitespace-nowrap transition-colors border border-slate-700/60"
+            disabled={loading}
+            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] whitespace-nowrap transition-colors border border-slate-700/60 disabled:opacity-50"
           >
             {q}
           </button>
@@ -103,37 +234,102 @@ export function ChatTab({ onSelectCitation }: ChatTabProps) {
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
               msg.sender === 'user'
                 ? 'bg-brand-600 text-white'
+                : msg.error
+                ? 'bg-rose-600 text-white'
                 : 'bg-indigo-600 text-white shadow-glow'
             }`}>
               {msg.sender === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
             </div>
 
-            <div className={`max-w-[80%] space-y-2 p-3.5 rounded-2xl text-xs leading-relaxed ${
+            <div className={`max-w-[85%] space-y-2.5 p-4 rounded-2xl text-xs leading-relaxed ${
               msg.sender === 'user'
                 ? 'bg-brand-600 text-white rounded-tr-none'
+                : msg.error
+                ? 'bg-rose-950/40 text-rose-200 border border-rose-800/60 rounded-tl-none'
                 : 'bg-slate-950 text-slate-200 border border-slate-800 rounded-tl-none'
             }`}>
-              <p>{msg.text}</p>
-
-              {/* Source Page Citation Chip */}
-              {msg.citation && (
-                <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                    <CornerDownRight className="w-3 h-3 text-brand-400" />
-                    Source Grounding:
-                  </span>
-                  <button
-                    onClick={() => onSelectCitation && onSelectCitation(msg.citation!.page, msg.citation!.section)}
-                    className="flex items-center gap-1 text-[11px] text-brand-300 font-mono bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/30 hover:border-brand-500/60 transition-colors"
-                  >
-                    <span>Page {msg.citation.page}, Sec {msg.citation.section}</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </button>
+              {/* Not Found Callout if document doesn't contain answer */}
+              {msg.notFound && (
+                <div className="px-3 py-2 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-300 text-[11px] flex items-center gap-2">
+                  <Info className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Information not explicitly found in this document.</span>
                 </div>
               )}
+
+              {/* Main Text */}
+              <p className="whitespace-pre-wrap">{msg.text}</p>
+
+              {/* Key Points Bullet List */}
+              {msg.keyPoints && msg.keyPoints.length > 0 && (
+                <div className="pt-2 border-t border-slate-800/80 space-y-1">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Key Takeaways:</span>
+                  <ul className="space-y-1 list-disc list-inside text-[11px] text-slate-300">
+                    {msg.keyPoints.map((kp, idx) => (
+                      <li key={idx} className="leading-snug">{kp}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Source Page Citation Chips */}
+              {msg.citations && msg.citations.length > 0 && (
+                <div className="pt-2.5 border-t border-slate-800/80 space-y-2">
+                  <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                    <CornerDownRight className="w-3 h-3 text-brand-400" />
+                    Verifiable Page Sources ({msg.citations.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {msg.citations.map((cite, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-slate-900 border border-slate-700/80 rounded-lg p-2 flex flex-col gap-1 max-w-full"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => onSelectCitation && onSelectCitation(cite.page_number, cite.section || '')}
+                            className="flex items-center gap-1 text-[11px] text-brand-300 font-mono bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/30 hover:border-brand-500/60 hover:bg-brand-500/20 transition-all text-left"
+                            title="Click to view page in canvas"
+                          >
+                            <span>Page {cite.page_number}{cite.section ? ` • ${cite.section}` : ''}</span>
+                            <ExternalLink className="w-3 h-3 ml-0.5" />
+                          </button>
+                        </div>
+                        {cite.excerpt && (
+                          <p className="text-[10px] text-slate-400 italic line-clamp-2 pl-1 border-l border-slate-700">
+                            "{cite.excerpt}"
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Timestamp */}
+              <div className="text-[9px] text-slate-500 text-right pt-1 font-mono">
+                {msg.timestamp}
+              </div>
             </div>
           </div>
         ))}
+
+        {/* Loading Indicator */}
+        {loading && (
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-glow">
+              <Bot className="w-4 h-4 animate-pulse" />
+            </div>
+            <div className="bg-slate-950 text-slate-300 border border-slate-800 rounded-2xl rounded-tl-none p-4 text-xs space-y-2 flex items-center gap-3">
+              <Loader2 className="w-4 h-4 animate-spin text-brand-400 shrink-0" />
+              <div className="space-y-0.5">
+                <p className="font-semibold text-white text-xs">{loadingStage || 'Processing question...'}</p>
+                <p className="text-[10px] text-slate-400">Filtering context vectors strictly within this document</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Form */}
@@ -146,17 +342,18 @@ export function ChatTab({ onSelectCitation }: ChatTabProps) {
       >
         <input
           type="text"
-          placeholder="Ask a question about this contract..."
+          placeholder="Ask a question about this legal document..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500"
+          disabled={loading}
+          className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 disabled:opacity-50"
         />
         <button
           type="submit"
-          disabled={!input.trim()}
-          className="bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white p-2.5 rounded-xl transition-colors"
+          disabled={!input.trim() || loading}
+          className="bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white p-2.5 rounded-xl transition-colors shadow-glow flex items-center justify-center shrink-0"
         >
-          <Send className="w-4 h-4" />
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>
       </form>
     </div>

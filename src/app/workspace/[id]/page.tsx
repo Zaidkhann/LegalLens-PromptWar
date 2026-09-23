@@ -129,6 +129,7 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
 
   const [activeTab, setActiveTab] = useState<'overview' | 'clauses' | 'attention' | 'chat' | 'checklist' | 'lawyer'>('overview');
   const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
+  const [targetPage, setTargetPage] = useState<number | null>(null);
 
   const [documentContent, setDocumentContent] = useState<DocumentContentData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -265,6 +266,7 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
 
   const handleSelectCitation = (page: number, sectionId: string) => {
     setHighlightedSection(sectionId);
+    setTargetPage(page);
   };
 
   const isAnalysisReady = analysisStatus === 'completed' && analysisData !== null;
@@ -344,7 +346,7 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
           {/* LEFT PANEL: Document Canvas / Viewer (5 cols) */}
           <div className="lg:col-span-5 p-4 bg-slate-950/40 border-r border-slate-800 flex flex-col h-full overflow-hidden">
-            <DocumentViewer document={documentContent} highlightedSection={highlightedSection} />
+            <DocumentViewer document={documentContent} highlightedSection={highlightedSection} targetPage={targetPage} />
           </div>
 
           {/* RIGHT PANEL: Intelligence Workspace (7 cols) */}
@@ -471,7 +473,7 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
               {activeTab === 'overview' && <OverviewTab analysis={analysisData} isReady={isAnalysisReady} />}
               {activeTab === 'clauses' && <ClausesTab analysis={analysisData} isReady={isAnalysisReady} onSelectClausePage={handleSelectCitation} />}
               {activeTab === 'attention' && <AttentionTab analysis={analysisData} isReady={isAnalysisReady} onSelectClausePage={handleSelectCitation} />}
-              {activeTab === 'chat' && <ChatTab onSelectCitation={handleSelectCitation} />}
+              {activeTab === 'chat' && <ChatTab documentId={documentId} onSelectCitation={handleSelectCitation} analysisData={analysisData} />}
               {activeTab === 'checklist' && <ChecklistTab analysis={analysisData} isReady={isAnalysisReady} />}
               {activeTab === 'lawyer' && <LawyerPrepTab analysis={analysisData} isReady={isAnalysisReady} />}
             </div>
