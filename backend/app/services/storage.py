@@ -1,4 +1,5 @@
 import os
+import json
 import uuid
 import sqlite3
 from datetime import datetime, timezone
@@ -10,6 +11,7 @@ from app.schemas.document import (
     DocumentPageSchema,
     DocumentContentResponse,
 )
+from app.schemas.analysis import AnalysisStatus
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 STORAGE_DIR = os.path.join(BASE_DIR, "storage")
@@ -46,6 +48,24 @@ def init_db():
                 page_number INTEGER NOT NULL,
                 text TEXT NOT NULL,
                 section_info TEXT,
+                FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
+            )
+        """)
+
+        # Phase 3: Analysis tables
+        # Add analysis_status column if not exists
+        try:
+            cursor.execute("ALTER TABLE documents ADD COLUMN analysis_status TEXT DEFAULT 'not_started'")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS analyses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                document_id TEXT NOT NULL UNIQUE,
+                analysis_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
                 FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
             )
         """)
@@ -231,3 +251,74 @@ def get_document_storage_path(doc_id: str) -> Optional[str]:
         cursor.execute("SELECT storage_path FROM documents WHERE id = ?", (doc_id,))
         row = cursor.fetchone()
         return row[0] if row else None
+
+
+# ─── Phase 3: Analysis Storage ────────────────────────────────────────────────
+
+
+def update_analysis_status(
+    doc_id: str,
+    status: AnalysisStatus,
+):
+    """Updates the analysis_status column on a document."""
+    init_db()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE documents SET analysis_status = ?, updated_at = ? WHERE id = ?",
+            (status.value, now_iso, doc_id),
+        )
+        conn.commit()
+
+
+def get_analysis_status(doc_id: str) -> Optional[str]:
+    """Returns the analysis_status for a document."""
+    init_db()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT analysis_status FROM documents WHERE id = ?", (doc_id,))
+        row = cursor.fetchone()
+        return row[0] if row else None
+
+
+def save_analysis(doc_id: str, analysis_dict: dict):
+    """Inserts or updates the analysis JSON for a document."""
+    init_db()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    analysis_json_str = json.dumps(analysis_dict, ensure_ascii=False)
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM analyses WHERE document_id = ?",
+            (doc_id,),
+        )
+        existing = cursor.fetchone()
+
+        if existing:
+            cursor.execute(
+                "UPDATE analyses SET analysis_json = ?, updated_at = ? WHERE document_id = ?",
+                (analysis_json_str, now_iso, doc_id),
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO analyses (document_id, analysis_json, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                (doc_id, analysis_json_str, now_iso, now_iso),
+            )
+        conn.commit()
+
+
+def get_analysis(doc_id: str) -> Optional[dict]:
+    """Retrieves the structured analysis dict for a document."""
+    init_db()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT analysis_json FROM analyses WHERE document_id = ?",
+            (doc_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return json.loads(row[0])

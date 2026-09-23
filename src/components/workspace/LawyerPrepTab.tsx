@@ -6,12 +6,38 @@ import {
   Download, 
   HelpCircle, 
   FileText, 
-  CheckCircle2, 
-  Printer,
-  Sparkles
+  CheckCircle2
 } from 'lucide-react';
+import { LegalAnalysisData } from '@/app/workspace/[id]/page';
 
-export function LawyerPrepTab() {
+interface LawyerPrepTabProps {
+  analysis?: LegalAnalysisData | null;
+  isReady?: boolean;
+}
+
+export function LawyerPrepTab({ analysis, isReady }: LawyerPrepTabProps) {
+  const aiQuestions = analysis?.lawyer_questions || [];
+
+  const sampleQuestions = [
+    {
+      question: "Is the early termination clause (Section 8.2) demanding both deposit forfeiture AND 60 days liquidated damages enforceable under local landlord-tenant law?",
+      context: "Section 8.2 early termination clause",
+      page_number: 4,
+    },
+    {
+      question: "What language should I propose to limit my liability for property damage caused by external plumbing failures?",
+      context: "Clause 12.4 indemnification waiver",
+      page_number: 6,
+    },
+    {
+      question: "Does the 90-day non-renewal notice requirement comply with local housing ordinance standards?",
+      context: "Clause 8.1 auto-renewal",
+      page_number: 4,
+    },
+  ];
+
+  const questionsToDisplay = isReady && aiQuestions.length > 0 ? aiQuestions : sampleQuestions;
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -28,7 +54,7 @@ export function LawyerPrepTab() {
           </div>
           <button
             onClick={() => alert("Lawyer Brief PDF Download triggered.")}
-            className="flex items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-glow transition-all"
+            className="flex items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-glow transition-all"
           >
             <Download className="w-4 h-4" />
             Download Brief (PDF)
@@ -45,15 +71,16 @@ export function LawyerPrepTab() {
             1. Recommended Questions to Ask Your Lawyer
           </h4>
           <ul className="space-y-2 text-xs text-slate-200">
-            <li className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
-              • &quot;Is the early termination clause (Section 8.2) demanding both deposit forfeiture AND 60 days liquidated damages enforceable under Washington state landlord-tenant law?&quot;
-            </li>
-            <li className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
-              • &quot;What language should I propose to limit my liability for property damage caused by external plumbing failures (Section 12.4)?&quot;
-            </li>
-            <li className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
-              • &quot;Does the 90-day non-renewal notice requirement comply with local housing ordinance notice standards?&quot;
-            </li>
+            {questionsToDisplay.map((q, idx) => (
+              <li key={idx} className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 space-y-1">
+                <p className="font-medium text-slate-100">• &quot;{q.question}&quot;</p>
+                {q.context && (
+                  <p className="text-[11px] text-slate-400 font-mono">
+                    Context: {q.context} {q.page_number ? `(Page ${q.page_number})` : ''}
+                  </p>
+                )}
+              </li>
+            ))}
           </ul>
         </div>
 
@@ -61,24 +88,25 @@ export function LawyerPrepTab() {
         <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
           <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
             <FileText className="w-4 h-4 text-amber-400" />
-            2. Specific Clauses to Request Professional Review
+            2. High-Attention Clauses for Legal Review
           </h4>
           <div className="space-y-2 text-xs">
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-              <div>
-                <strong className="text-slate-200">Clause 8.2 - Early Termination Penalties</strong>
-                <p className="text-slate-400 text-[11px]">Page 4 • Forfeiture + 60 days liquidated damages</p>
+            {(analysis?.attention_signals || []).slice(0, 3).map((sig, idx) => (
+              <div key={idx} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+                <div>
+                  <strong className="text-slate-200">{sig.title || 'Attention Point'}</strong>
+                  <p className="text-slate-400 text-[11px]">
+                    {sig.page_number ? `Page ${sig.page_number}` : ''} {sig.source_reference ? `• ${sig.source_reference}` : ''}
+                  </p>
+                </div>
+                <span className="text-[10px] font-bold bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30 uppercase">
+                  {sig.severity || 'HIGH'}
+                </span>
               </div>
-              <span className="text-[10px] font-bold bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">High Priority</span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-              <div>
-                <strong className="text-slate-200">Clause 12.4 - Indemnification & Property Waiver</strong>
-                <p className="text-slate-400 text-[11px]">Page 6 • Waiver of landlord liability for leak damage</p>
-              </div>
-              <span className="text-[10px] font-bold bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30">Moderate</span>
-            </div>
+            ))}
+            {(!analysis?.attention_signals || analysis.attention_signals.length === 0) && (
+              <p className="text-xs text-slate-400 italic">Run AI analysis to automatically identify top clauses needing review.</p>
+            )}
           </div>
         </div>
 
@@ -89,9 +117,9 @@ export function LawyerPrepTab() {
             3. Information & Supporting Documents to Bring
           </h4>
           <ul className="space-y-2 text-xs text-slate-300">
-            <li className="flex items-center gap-2">✓ Executed copy of current Residential Lease Agreement</li>
-            <li className="flex items-center gap-2">✓ Move-in Condition Inspection Form & Photos</li>
-            <li className="flex items-center gap-2">✓ Rent payment receipts / bank statements for deposit proof</li>
+            <li className="flex items-center gap-2">✓ Executed copy of this document</li>
+            <li className="flex items-center gap-2">✓ Correspondence or addendums exchanged with counterparty</li>
+            <li className="flex items-center gap-2">✓ Proof of payments / deposit receipts if applicable</li>
           </ul>
         </div>
       </div>

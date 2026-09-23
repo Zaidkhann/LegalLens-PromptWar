@@ -1,54 +1,79 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckSquare, 
-  Square, 
-  Clock, 
-  AlertCircle, 
-  HelpCircle, 
-  Plus, 
-  Filter 
+  Square,
+  AlertCircle
 } from 'lucide-react';
+import { LegalAnalysisData } from '@/app/workspace/[id]/page';
 
-export function ChecklistTab() {
-  const [items, setItems] = useState([
-    {
-      id: '1',
-      category: 'Review',
-      priority: 'High',
-      text: 'Review early termination clause 8.2 with landlord before signing',
-      completed: false,
-    },
-    {
-      id: '2',
-      category: 'Deadline',
-      priority: 'High',
-      text: 'Calendar reminder for 90-day non-renewal notice (August 2, 2028)',
-      completed: true,
-    },
-    {
-      id: '3',
-      category: 'Clarification',
-      priority: 'Medium',
-      text: 'Clarify whether routine HVAC filter changes are tenant or landlord expense',
-      completed: false,
-    },
-    {
-      id: '4',
-      category: 'Action',
-      priority: 'Medium',
-      text: 'Obtain proof of tenant renters insurance policy with $100k liability coverage',
-      completed: false,
-    },
-    {
-      id: '5',
-      category: 'Review',
-      priority: 'Low',
-      text: 'Confirm move-in condition inspection checklist procedure',
-      completed: true,
-    },
-  ]);
+interface ChecklistTabProps {
+  analysis?: LegalAnalysisData | null;
+  isReady?: boolean;
+}
+
+interface Item {
+  id: string;
+  category: string;
+  priority: string;
+  text: string;
+  reason?: string;
+  completed: boolean;
+}
+
+export function ChecklistTab({ analysis, isReady }: ChecklistTabProps) {
+  const [items, setItems] = useState<Item[]>([]);
+
+  useEffect(() => {
+    if (isReady && analysis?.action_items && analysis.action_items.length > 0) {
+      setItems(
+        analysis.action_items.map((ai, idx) => ({
+          id: `ai-${idx}`,
+          category: ai.category || 'ACTION',
+          priority: ai.priority || 'MEDIUM',
+          text: ai.task || 'Action item',
+          reason: ai.reason || undefined,
+          completed: false,
+        }))
+      );
+    } else {
+      setItems([
+        {
+          id: '1',
+          category: 'REVIEW',
+          priority: 'HIGH',
+          text: 'Review early termination clause 8.2 with landlord before signing',
+          reason: 'Significant financial penalty applies',
+          completed: false,
+        },
+        {
+          id: '2',
+          category: 'DEADLINE',
+          priority: 'HIGH',
+          text: 'Calendar reminder for 90-day non-renewal notice (August 2, 2028)',
+          reason: 'Prevents automatic 12-month extension',
+          completed: true,
+        },
+        {
+          id: '3',
+          category: 'CLARIFICATION',
+          priority: 'MEDIUM',
+          text: 'Clarify whether routine HVAC filter changes are tenant or landlord expense',
+          reason: 'Prevent unexpected maintenance costs',
+          completed: false,
+        },
+        {
+          id: '4',
+          category: 'ACTION',
+          priority: 'MEDIUM',
+          text: 'Obtain proof of tenant renters insurance policy with $100k liability coverage',
+          reason: 'Mandatory contractual requirement',
+          completed: false,
+        },
+      ]);
+    }
+  }, [analysis, isReady]);
 
   const toggleItem = (id: string) => {
     setItems((prev) =>
@@ -92,11 +117,11 @@ export function ChecklistTab() {
 
             <div className="flex-1 space-y-1">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 uppercase">
                   {item.category}
                 </span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                  item.priority === 'High'
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                  item.priority === 'HIGH'
                     ? 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
                     : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
                 }`}>
@@ -106,6 +131,9 @@ export function ChecklistTab() {
               <p className={`text-xs ${item.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
                 {item.text}
               </p>
+              {item.reason && (
+                <p className="text-[11px] text-slate-400 font-mono">Reason: {item.reason}</p>
+              )}
             </div>
           </div>
         ))}
