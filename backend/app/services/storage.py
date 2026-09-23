@@ -74,6 +74,24 @@ def init_db():
             )
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON document_chunks(document_id)")
+
+        # Phase 5: Document comparisons table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS document_comparisons (
+                id TEXT PRIMARY KEY,
+                document_a_id TEXT NOT NULL,
+                document_b_id TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                total_changes INTEGER NOT NULL,
+                added_count INTEGER NOT NULL,
+                removed_count INTEGER NOT NULL,
+                modified_count INTEGER NOT NULL,
+                comparison_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (document_a_id) REFERENCES documents (id) ON DELETE CASCADE,
+                FOREIGN KEY (document_b_id) REFERENCES documents (id) ON DELETE CASCADE
+            )
+        """)
         conn.commit()
 
 
@@ -322,6 +340,100 @@ def get_analysis(doc_id: str) -> Optional[dict]:
         cursor.execute(
             "SELECT analysis_json FROM analyses WHERE document_id = ?",
             (doc_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return json.loads(row[0])
+
+
+# ─── Phase 5: Document Comparison Storage ─────────────────────────────────────
+
+
+def list_documents() -> List[DocumentMetaData]:
+    """Retrieves all uploaded documents ordered by creation date descending."""
+    init_db()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM documents ORDER BY created_at DESC")
+        rows = cursor.fetchall()
+        return [
+            DocumentMetaData(
+                id=r["id"],
+                original_filename=r["original_filename"],
+                title=r["title"],
+                file_type=r["file_type"],
+                file_size=r["file_size"],
+                page_count=r["page_count"],
+                processing_status=ProcessingStatus(r["processing_status"]),
+                error_message=r["error_message"],
+                created_at=r["created_at"],
+                updated_at=r["updated_at"],
+            )
+            for r in rows
+        ]
+
+
+def save_comparison(comp_dict: dict) -> str:
+    """Inserts or updates a document comparison record."""
+    init_db()
+    comp_id = comp_dict.get("comparison_id") or str(uuid.uuid4())
+    comp_dict["comparison_id"] = comp_id
+    now_iso = datetime.now(timezone.utc).isoformat()
+    json_str = json.dumps(comp_dict, ensure_ascii=False)
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO document_comparisons (
+                id, document_a_id, document_b_id, summary, total_changes,
+                added_count, removed_count, modified_count, comparison_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                comp_id,
+                comp_dict["document_a_id"],
+                comp_dict["document_b_id"],
+                comp_dict.get("summary", ""),
+                comp_dict.get("total_changes", 0),
+                comp_dict.get("added_count", 0),
+                comp_dict.get("removed_count", 0),
+                comp_dict.get("modified_count", 0),
+                json_str,
+                now_iso,
+            ),
+        )
+        conn.commit()
+    return comp_id
+
+
+def get_comparison(comp_id: str) -> Optional[dict]:
+    """Retrieves a comparison by its comparison ID."""
+    init_db()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT comparison_json FROM document_comparisons WHERE id = ?", (comp_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return json.loads(row[0])
+
+
+def get_comparison_by_docs(doc_a_id: str, doc_b_id: str) -> Optional[dict]:
+    """Retrieves existing comparison record for document pair A & B (in either direction)."""
+    init_db()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT comparison_json FROM document_comparisons
+            WHERE (document_a_id = ? AND document_b_id = ?)
+               OR (document_a_id = ? AND document_b_id = ?)
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            (doc_a_id, doc_b_id, doc_b_id, doc_a_id),
         )
         row = cursor.fetchone()
         if not row:

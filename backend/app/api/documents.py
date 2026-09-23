@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, status, BackgroundTasks
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 
 from app.schemas.document import (
@@ -36,11 +36,22 @@ from app.services.parsers import (
 )
 from app.services.gemini_service import analyze_document
 from app.schemas.qa import QARequest, QAResponse
+from app.schemas.comparison import ComparisonRequest, ComparisonResponse, DocumentComparison
 from app.services.rag_service import rag_service
+from app.services.comparison_service import comparison_service
+from app.services.storage import list_documents, get_comparison
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
+
+
+@router.get("", response_model=List[DocumentMetaData])
+async def list_documents_endpoint():
+    """
+    List all uploaded documents available for workspace selection and comparison.
+    """
+    return list_documents()
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
@@ -278,5 +289,56 @@ async def chat_document_endpoint(document_id: str, request: QARequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Grounded Q&A processing failed: {str(e)}"
+        )
+
+
+# ─── Phase 5: AI Document Comparison Endpoints ────────────────────────────────
+
+
+@router.post("/compare", response_model=ComparisonResponse)
+async def compare_documents_endpoint(request: ComparisonRequest):
+    """
+    Compare Document A and Document B.
+    Aligns sections, detects structural text diffs, and evaluates plain-language legal impact with Gemini.
+    """
+    try:
+        comparison_result = await comparison_service.compare_documents(
+            document_a_id=request.document_a_id,
+            document_b_id=request.document_b_id,
+            force_recompare=request.force_recompare,
+        )
+        return ComparisonResponse(success=True, comparison=comparison_result)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error in document comparison: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Document comparison processing failed: {str(e)}"
+        )
+
+
+@router.get("/compare/{comparison_id}", response_model=ComparisonResponse)
+async def get_comparison_endpoint(comparison_id: str):
+    """
+    Retrieve stored document comparison result by ID.
+    """
+    comp_dict = get_comparison(comparison_id)
+    if not comp_dict:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Comparison record with ID '{comparison_id}' not found."
+        )
+    try:
+        doc_comp = DocumentComparison.model_validate(comp_dict)
+        return ComparisonResponse(success=True, comparison=doc_comp)
+    except Exception as e:
+        logger.error(f"Error parsing comparison JSON for '{comparison_id}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to parse stored comparison result."
         )
 

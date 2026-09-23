@@ -111,3 +111,81 @@ Respond strictly in JSON matching the LegalAnswer schema:
   "confidence": "HIGH",
   "not_found": false
 }}"""
+
+
+LEGAL_COMPARISON_SYSTEM_PROMPT = """You are LegalLens Document Comparison Assistant.
+Your task is to analyze detected textual differences between Document A (Original Version) and Document B (Revised Version).
+
+RULES & INSTRUCTIONS:
+1. GROUNDING: Analyze ONLY the provided aligned sections. Do NOT invent changes, dates, or terms.
+2. PLAIN LANGUAGE: Explain what changed in simple, plain language that a non-lawyer can understand.
+3. CAUTIOUS LANGUAGE: Use objective, cautious language (e.g. "Notice period extended from 30 to 90 days", "A $500 pet surcharge was added"). Do NOT claim a change is illegal, invalid, or unlawful.
+4. IMPORTANT CHANGES: Flag changes as important (is_important: true, attention_level: "HIGH" or "MEDIUM") if they alter:
+   - Payment amounts, rent, fees, or penalties
+   - Deadlines, notice periods, duration, or renewal terms
+   - Termination conditions or grounds for breach
+   - Liability, indemnification, or warranty limitations
+   - Confidentiality or dispute resolution procedures
+5. SUMMARY: Provide a clear high-level executive summary of the overall comparison (e.g., "3 key changes were detected: payment notice extended, new fee added, response time guarantee removed.").
+6. HIGH-LEVEL BULLETS: Include an array of `important_changes` listing the top 3-5 major takeaways.
+
+Output MUST be a single structured JSON object matching the DocumentComparison schema."""
+
+
+def build_comparison_prompt(doc_a_title: str, doc_b_title: str, aligned_diffs: list) -> str:
+    """
+    Builds the Gemini prompt for structured legal comparison analysis.
+    """
+    diff_blocks = []
+    for idx, item in enumerate(aligned_diffs, 1):
+        page_a_str = f"Page {item['page_a']}" if item.get("page_a") else "N/A"
+        page_b_str = f"Page {item['page_b']}" if item.get("page_b") else "N/A"
+
+        block = f"""--- DIFF ITEM {idx}: [{item['change_type']}] {item['title']} ---
+[Document A ({doc_a_title}) - {page_a_str}]:
+{item['doc_a_text'] if item['doc_a_text'] else 'N/A (Section did not exist in Version 1)'}
+
+[Document B ({doc_b_title}) - {page_b_str}]:
+{item['doc_b_text'] if item['doc_b_text'] else 'N/A (Section removed in Version 2)'}
+"""
+        diff_blocks.append(block)
+
+    formatted_diffs = "\n\n".join(diff_blocks)
+
+    return f"""{LEGAL_COMPARISON_SYSTEM_PROMPT}
+
+═══════════════════════════════════════════════════════
+DOCUMENT A: {doc_a_title}
+DOCUMENT B: {doc_b_title}
+═══════════════════════════════════════════════════════
+
+DETECTED ALIGNED SECTIONS & TEXT DIFFERENCES:
+═══════════════════════════════════════════════════════
+
+{formatted_diffs}
+
+═══════════════════════════════════════════════════════
+INSTRUCTIONS:
+═══════════════════════════════════════════════════════
+Analyze the above differences and return a single JSON object with the following structure:
+{{
+  "summary": "Executive summary of changes...",
+  "important_changes": [
+    "Notice period extended from 30 to 90 days",
+    "New $500 pet fee added"
+  ],
+  "changes": [
+    {{
+      "id": "1",
+      "section": "Clause 8.1 - Notice Period",
+      "change_type": "MODIFIED",
+      "original_text": "Original text snippet...",
+      "revised_text": "Revised text snippet...",
+      "explanation": "Plain language explanation...",
+      "attention_level": "HIGH",
+      "page_original": 1,
+      "page_revised": 2,
+      "is_important": true
+    }}
+  ]
+}}"""
