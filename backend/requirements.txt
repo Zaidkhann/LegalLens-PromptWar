@@ -1,0 +1,13 @@
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.0.0
+google-genai>=0.1.0
+pymupdf>=1.24.0
+python-docx>=1.1.0
+python-multipart>=0.0.9
+requests>=2.31.0
+lxml>=5.1.0
+tenacity>=8.2.0
+python-dotenv>=1.0.0
+cryptography>=42.0.0
+annotated-types>=0.6.0
