@@ -28,11 +28,14 @@ FALLBACK_EMBEDDING_MODEL = "gemini-embedding-2"
 class EmbeddingService:
     """
     Clean abstraction for generating text embeddings using Google Gemini API.
+    Includes in-memory LRU caching for performance optimization.
     """
 
     def __init__(self, api_key: str = GEMINI_API_KEY):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
         self._client = None
+        self._cache: dict[str, List[float]] = {}
+        self._max_cache_size = 1000
 
     def _get_client(self) -> genai.Client:
         if not self._client:
@@ -46,10 +49,15 @@ class EmbeddingService:
 
     def get_embedding(self, text: str) -> List[float]:
         """
-        Generates a vector embedding for a single text string.
+        Generates a vector embedding for a single text string, with caching.
         """
         if not text or not text.strip():
             raise ValueError("Cannot generate embedding for empty text.")
+
+        cleaned_text = text.strip()
+        if cleaned_text in self._cache:
+            logger.debug(f"Embedding cache hit for text length {len(cleaned_text)}")
+            return self._cache[cleaned_text]
 
         client = self._get_client()
         models_to_try = [PRIMARY_EMBEDDING_MODEL, FALLBACK_EMBEDDING_MODEL]
@@ -58,10 +66,14 @@ class EmbeddingService:
             try:
                 res = client.models.embed_content(
                     model=model,
-                    contents=text,
+                    contents=cleaned_text,
                 )
                 if res.embeddings and len(res.embeddings) > 0:
-                    return res.embeddings[0].values
+                    emb_val = res.embeddings[0].values
+                    # Cache result if cache limit not exceeded
+                    if len(self._cache) < self._max_cache_size:
+                        self._cache[cleaned_text] = emb_val
+                    return emb_val
             except Exception as e:
                 logger.warning(f"Embedding failure with model '{model}': {e}")
                 continue

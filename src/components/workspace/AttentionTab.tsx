@@ -16,7 +16,7 @@ interface AttentionTabProps {
   onSelectClausePage?: (page: number, sectionId: string) => void;
 }
 
-export function AttentionTab({ analysis, isReady, onSelectClausePage }: AttentionTabProps) {
+export const AttentionTab = React.memo(function AttentionTab({ analysis, isReady, onSelectClausePage }: AttentionTabProps) {
   const signalsToDisplay = analysis?.attention_signals || [];
 
   return (
@@ -121,4 +121,5 @@ export function AttentionTab({ analysis, isReady, onSelectClausePage }: Attentio
       </div>
     </div>
   );
-}
+});
+

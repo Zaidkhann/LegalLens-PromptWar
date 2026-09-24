@@ -64,8 +64,15 @@ class RAGService:
         Processes a user question about a document, retrieves relevant context,
         and generates a grounded answer via Gemini API.
         """
-        # Validate question input
-        qa_req = QARequest(question=question)
+        # Validate and sanitize question input
+        sanitized_q = question.strip()
+        # Neutralize common prompt injection patterns safely
+        injection_patterns = ["ignore previous instructions", "ignore all previous", "system prompt", "you are now"]
+        for pat in injection_patterns:
+            if pat in sanitized_q.lower():
+                sanitized_q = sanitized_q.replace(pat, f"[filtered: {pat}]")
+
+        qa_req = QARequest(question=sanitized_q)
 
         # 1. Verify document exists and text extraction completed
         doc = get_document_by_id(document_id)

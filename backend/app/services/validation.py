@@ -87,4 +87,30 @@ async def validate_upload_file(file: UploadFile) -> tuple[str, str, int]:
         )
 
     file_type = ext.lstrip(".")
+
+    # ── Security: Magic Byte Validation ──────────────────────────────────────
+    header = file.file.read(512)
+    file.file.seek(0)
+
+    if ext == ".pdf":
+        if not header.startswith(b"%PDF-"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid PDF file format. Header signature mismatch."
+            )
+    elif ext == ".docx":
+        # DOCX files are ZIP archives starting with PK\x03\x04
+        if not (header.startswith(b"PK\x03\x04") or header.startswith(b"PK\x05\x06")):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid DOCX file format. Header signature mismatch."
+            )
+    elif ext == ".txt":
+        # Ensure text file contains valid UTF-8/ASCII without executable binary null bytes
+        if b"\x00" in header:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid TXT file format. Binary null bytes detected."
+            )
+
     return filename, file_type, file_size

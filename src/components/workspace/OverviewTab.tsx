@@ -16,7 +16,7 @@ interface OverviewTabProps {
   isReady?: boolean;
 }
 
-export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
+export const OverviewTab = React.memo(function OverviewTab({ analysis, isReady }: OverviewTabProps) {
   const overview = analysis?.overview;
   const plainLanguage = analysis?.plain_language;
 
@@ -155,4 +155,5 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
       </div>
     </div>
   );
-}
+});
+

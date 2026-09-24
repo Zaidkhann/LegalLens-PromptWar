@@ -85,6 +85,8 @@ def init_db():
             )
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON document_chunks(document_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pages_doc_id ON document_pages(document_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_analyses_doc_id ON analyses(document_id)")
 
         # Phase 5: Document comparisons table
         cursor.execute("""
