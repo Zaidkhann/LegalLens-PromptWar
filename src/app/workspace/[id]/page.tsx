@@ -147,29 +147,6 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
     async function fetchDocumentData() {
       if (!documentId) return;
 
-      if (documentId === 'demo-doc-1') {
-        setDocumentContent({
-          document_id: 'demo-doc-1',
-          title: 'Residential_Rental_Agreement_2026',
-          file_type: 'pdf',
-          page_count: 8,
-          pages: [
-            {
-              page_number: 1,
-              text: "RESIDENTIAL LEASE AGREEMENT\n\nThis Lease Agreement is entered into on October 1, 2026, by and between Lessor Properties LLC and John Doe.\n\nCLAUSE 1.1 - PREMISES AND TERM\nLessor agrees to lease the apartment located at 742 Evergreen Terrace for a term of 12 calendar months.",
-              section_info: "SECTION I: PREMISES & TERM"
-            },
-            {
-              page_number: 2,
-              text: "CLAUSE 2.1 - RENT PAYMENT AND DEPOSIT\nRent is $2,400 per month payable on the 1st of each month. Late payment incurs a $100 penalty fee after 5 calendar days.",
-              section_info: "SECTION II: RENT & DEPOSIT"
-            }
-          ]
-        });
-        setLoading(false);
-        return;
-      }
-
       setLoading(true);
       setError(null);
 
@@ -198,7 +175,7 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
 
   // ── Fetch analysis data ────────────────────────────────────────────────────
   const fetchAnalysis = useCallback(async () => {
-    if (!documentId || documentId === 'demo-doc-1') return;
+    if (!documentId) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/documents/${documentId}/analysis`);
       if (!res.ok) return;
@@ -209,13 +186,24 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
         setAnalysisData(data.analysis);
       }
     } catch {
-      // Silently fail — will retry or user can trigger
+      // Silently fail — will retry
     }
   }, [documentId]);
 
   useEffect(() => {
     fetchAnalysis();
   }, [fetchAnalysis]);
+
+  // ── Polling while analyzing ────────────────────────────────────────────────
+  useEffect(() => {
+    if (analysisStatus !== 'analyzing') return;
+
+    const interval = setInterval(() => {
+      fetchAnalysis();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [analysisStatus, fetchAnalysis]);
 
   // ── Progress animation during analysis ─────────────────────────────────────
   useEffect(() => {
@@ -242,7 +230,7 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
 
   // ── Trigger analysis ───────────────────────────────────────────────────────
   const handleStartAnalysis = async () => {
-    if (!documentId || documentId === 'demo-doc-1') return;
+    if (!documentId) return;
     setAnalysisStatus('analyzing');
     setAnalysisError(null);
 

@@ -129,29 +129,12 @@ export function ChatTab({ documentId, onSelectCitation, analysisData }: ChatTabP
     const stageTimer2 = setTimeout(() => setLoadingStage('Generating grounded answer...'), 2600);
 
     try {
-      // Demo fallback if no real documentId present
-      if (!documentId || documentId === 'demo-doc-1') {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        const demoAiMsg: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          sender: 'ai',
-          text: 'According to Section 2.1 of the agreement, rent is $2,400 per month payable on the 1st of each month. A late payment penalty fee of $100 applies after 5 calendar days.',
-          keyPoints: ['Rent amount: $2,400/month due on the 1st', '5-day grace period before late penalty', '$100 fee applies after grace period'],
-          citations: [
-            {
-              page_number: 2,
-              section: 'Clause 2.1',
-              excerpt: 'Rent is $2,400 per month payable on the 1st of each month. Late payment incurs a $100 penalty fee after 5 calendar days.',
-              relevance: 0.95,
-            },
-          ],
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        setMessages((prev) => [...prev, demoAiMsg]);
-        return;
+      if (!documentId) {
+        throw new Error('No document loaded. Please upload a document to use Ask Your Document.');
       }
 
       const res = await fetch(`${API_BASE_URL}/api/v1/documents/${documentId}/chat`, {
+
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: questionText }),

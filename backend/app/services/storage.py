@@ -59,6 +59,17 @@ def init_db():
         except sqlite3.OperationalError:
             pass  # Column already exists
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS analyses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                document_id TEXT UNIQUE NOT NULL,
+                analysis_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
+            )
+        """)
+
         # Phase 4: Document chunks & vector store table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS document_chunks (

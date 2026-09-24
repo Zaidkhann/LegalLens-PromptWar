@@ -38,40 +38,7 @@ export function ChecklistTab({ analysis, isReady }: ChecklistTabProps) {
         }))
       );
     } else {
-      setItems([
-        {
-          id: '1',
-          category: 'REVIEW',
-          priority: 'HIGH',
-          text: 'Review early termination clause 8.2 with landlord before signing',
-          reason: 'Significant financial penalty applies',
-          completed: false,
-        },
-        {
-          id: '2',
-          category: 'DEADLINE',
-          priority: 'HIGH',
-          text: 'Calendar reminder for 90-day non-renewal notice (August 2, 2028)',
-          reason: 'Prevents automatic 12-month extension',
-          completed: true,
-        },
-        {
-          id: '3',
-          category: 'CLARIFICATION',
-          priority: 'MEDIUM',
-          text: 'Clarify whether routine HVAC filter changes are tenant or landlord expense',
-          reason: 'Prevent unexpected maintenance costs',
-          completed: false,
-        },
-        {
-          id: '4',
-          category: 'ACTION',
-          priority: 'MEDIUM',
-          text: 'Obtain proof of tenant renters insurance policy with $100k liability coverage',
-          reason: 'Mandatory contractual requirement',
-          completed: false,
-        },
-      ]);
+      setItems([]);
     }
   }, [analysis, isReady]);
 
@@ -91,52 +58,66 @@ export function ChecklistTab({ analysis, isReady }: ChecklistTabProps) {
           </h3>
           <p className="text-xs text-slate-400">Track tasks, deadlines, and points requiring action or clarification.</p>
         </div>
-        <span className="text-xs text-slate-400 font-mono">
-          {items.filter((i) => i.completed).length} / {items.length} Completed
-        </span>
+        {items.length > 0 && (
+          <span className="text-xs text-slate-400 font-mono">
+            {items.filter((i) => i.completed).length} / {items.length} Completed
+          </span>
+        )}
       </div>
 
       <div className="space-y-3">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            onClick={() => toggleItem(item.id)}
-            className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-              item.completed
-                ? 'bg-slate-950/40 border-slate-800/80 opacity-60'
-                : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <div className="mt-0.5 text-brand-400">
-              {item.completed ? (
-                <CheckSquare className="w-5 h-5 text-emerald-400" />
-              ) : (
-                <Square className="w-5 h-5 text-slate-500" />
-              )}
-            </div>
-
-            <div className="flex-1 space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 uppercase">
-                  {item.category}
-                </span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                  item.priority === 'HIGH'
-                    ? 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
-                    : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
-                }`}>
-                  {item.priority} Priority
-                </span>
-              </div>
-              <p className={`text-xs ${item.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
-                {item.text}
-              </p>
-              {item.reason && (
-                <p className="text-[11px] text-slate-400 font-mono">Reason: {item.reason}</p>
-              )}
-            </div>
+        {!isReady ? (
+          <div className="p-8 text-center rounded-2xl bg-slate-900/50 border border-slate-800 space-y-2">
+            <CheckSquare className="w-6 h-6 text-brand-400 mx-auto" />
+            <p className="text-xs text-slate-300">Run document analysis to generate actionable checklist items.</p>
           </div>
-        ))}
+        ) : items.length === 0 ? (
+          <div className="p-8 text-center rounded-2xl bg-slate-900/50 border border-slate-800 space-y-2">
+            <AlertCircle className="w-6 h-6 text-slate-500 mx-auto" />
+            <p className="text-xs text-slate-400">No actionable items were found in this document.</p>
+          </div>
+        ) : (
+          items.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => toggleItem(item.id)}
+              className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
+                item.completed
+                  ? 'bg-slate-950/40 border-slate-800/80 opacity-60'
+                  : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+              }`}
+            >
+              <div className="mt-0.5 text-brand-400">
+                {item.completed ? (
+                  <CheckSquare className="w-5 h-5 text-emerald-400" />
+                ) : (
+                  <Square className="w-5 h-5 text-slate-500" />
+                )}
+              </div>
+
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 uppercase">
+                    {item.category}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                    item.priority === 'HIGH'
+                      ? 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
+                      : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+                  }`}>
+                    {item.priority} Priority
+                  </span>
+                </div>
+                <p className={`text-xs ${item.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+                  {item.text}
+                </p>
+                {item.reason && (
+                  <p className="text-[11px] text-slate-400 font-mono">Reason: {item.reason}</p>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

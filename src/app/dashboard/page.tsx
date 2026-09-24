@@ -1,64 +1,85 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   FileText, 
   Upload, 
   GitCompare, 
   MessageSquare, 
-  Sparkles, 
   Clock, 
   CheckCircle2, 
   AlertTriangle, 
   ChevronRight, 
   Plus, 
-  Filter, 
   Search,
-  FileCheck2,
-  Inbox
+  Inbox,
+  Loader2
 } from 'lucide-react';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+interface StoredDocument {
+  id: string;
+  original_filename: string;
+  title: string;
+  file_type: string;
+  file_size: number;
+  page_count: number;
+  processing_status: string;
+  analysis_status?: string;
+  created_at: string;
+}
+
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<'all' | 'recent' | 'empty'>('all');
+  const [documents, setDocuments] = useState<StoredDocument[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Sample placeholder document list
-  const sampleDocuments = [
-    {
-      id: 'demo-doc-1',
-      title: 'Residential Rental Agreement 2026.pdf',
-      type: 'Rental Lease Agreement',
-      date: 'Sep 22, 2026',
-      size: '2.4 MB',
-      status: 'Analyzed',
-      clausesCount: 8,
-      attentionCount: 2,
-      pageCount: 6,
-    },
-    {
-      id: 'demo-doc-2',
-      title: 'Software Engineering Employment Contract.pdf',
-      type: 'Employment Agreement',
-      date: 'Sep 18, 2026',
-      size: '1.8 MB',
-      status: 'Analyzed',
-      clausesCount: 12,
-      attentionCount: 1,
-      pageCount: 10,
-    },
-    {
-      id: 'demo-doc-3',
-      title: 'SaaS Master Service Terms & Conditions.docx',
-      type: 'Service Terms',
-      date: 'Sep 15, 2026',
-      size: '950 KB',
-      status: 'Analyzed',
-      clausesCount: 15,
-      attentionCount: 3,
-      pageCount: 14,
-    },
-  ];
+  useEffect(() => {
+    async function fetchDocuments() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/documents`);
+        if (res.ok) {
+          const data = await res.json();
+          setDocuments(data.documents || []);
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard documents:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDocuments();
+  }, []);
+
+  const formatFileSize = (bytes: number): string => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const formatDate = (isoString?: string): string => {
+    if (!isoString) return 'Recently';
+    try {
+      return new Date(isoString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return 'Recently';
+    }
+  };
+
+  const filteredDocuments = documents.filter((doc) =>
+    (doc.title || doc.original_filename || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const askDocumentHref = documents.length > 0 ? `/workspace/${documents[0].id}` : '/upload';
 
   return (
     <div className="flex-1 bg-slate-950 text-slate-100 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-8">
@@ -119,7 +140,7 @@ export default function DashboardPage() {
         </Link>
 
         <Link
-          href="/workspace/demo-doc-1"
+          href={askDocumentHref}
           className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-brand-500/50 transition-all group flex items-start justify-between"
         >
           <div className="space-y-2">
@@ -137,26 +158,9 @@ export default function DashboardPage() {
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveTab('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                activeTab === 'all'
-                  ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              All Documents ({sampleDocuments.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('empty')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                activeTab === 'empty'
-                  ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Test Empty State
-            </button>
+            <span className="text-sm font-bold text-white">
+              All Uploaded Documents ({documents.length})
+            </span>
           </div>
 
           <div className="relative w-full sm:w-64">
@@ -172,7 +176,12 @@ export default function DashboardPage() {
         </div>
 
         {/* DOCUMENTS LIST OR EMPTY STATE */}
-        {activeTab === 'empty' ? (
+        {loading ? (
+          <div className="p-12 text-center rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3">
+            <Loader2 className="w-6 h-6 animate-spin text-brand-400 mx-auto" />
+            <p className="text-xs text-slate-400">Loading uploaded documents...</p>
+          </div>
+        ) : filteredDocuments.length === 0 ? (
           <div className="p-12 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-slate-800 text-slate-500 flex items-center justify-center mx-auto">
               <Inbox className="w-6 h-6" />
@@ -185,7 +194,7 @@ export default function DashboardPage() {
             </div>
             <Link
               href="/upload"
-              className="inline-flex items-center gap-2 bg-brand-600 text-white font-semibold text-xs px-4 py-2 rounded-lg"
+              className="inline-flex items-center gap-2 bg-brand-600 text-white font-semibold text-xs px-4 py-2 rounded-lg hover:bg-brand-500 transition-colors"
             >
               <Upload className="w-3.5 h-3.5" />
               Upload Document
@@ -193,7 +202,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {sampleDocuments.map((doc) => (
+            {filteredDocuments.map((doc) => (
               <div
                 key={doc.id}
                 className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
@@ -205,34 +214,32 @@ export default function DashboardPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-bold text-white hover:text-brand-300 transition-colors">
-                        <Link href={`/workspace/${doc.id}`}>{doc.title}</Link>
+                        <Link href={`/workspace/${doc.id}`}>{doc.title || doc.original_filename}</Link>
                       </h4>
-                      <span className="text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full">
-                        {doc.type}
+                      <span className="text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full uppercase font-mono">
+                        {doc.file_type}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-slate-500">
-                      <span>Uploaded {doc.date}</span>
+                    <div className="flex items-center gap-3 text-xs text-slate-500">
+                      <span>Uploaded {formatDate(doc.created_at)}</span>
                       <span>•</span>
-                      <span>{doc.size}</span>
+                      <span>{formatFileSize(doc.file_size)}</span>
                       <span>•</span>
-                      <span>{doc.pageCount} pages</span>
+                      <span>{doc.page_count} {doc.page_count === 1 ? 'page' : 'pages'}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-brand-500/10 text-brand-300 border border-brand-500/20 px-2.5 py-1 rounded border font-medium">
-                      {doc.clausesCount} Clauses
-                    </span>
-                    {doc.attentionCount > 0 && (
-                      <span className="bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-1 rounded border font-medium flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3 text-amber-400" />
-                        {doc.attentionCount} Attention Points
-                      </span>
-                    )}
-                  </div>
+                  <span className={`text-[10px] font-semibold px-2.5 py-1 rounded border uppercase font-mono ${
+                    doc.analysis_status === 'completed'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                      : doc.analysis_status === 'analyzing'
+                      ? 'bg-brand-500/10 text-brand-300 border-brand-500/30 animate-pulse'
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}>
+                    {doc.analysis_status === 'completed' ? 'AI Analyzed' : doc.analysis_status === 'analyzing' ? 'Analyzing...' : 'Extracted'}
+                  </span>
 
                   <Link
                     href={`/workspace/${doc.id}`}

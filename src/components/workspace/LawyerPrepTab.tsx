@@ -6,7 +6,8 @@ import {
   Download, 
   HelpCircle, 
   FileText, 
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { LegalAnalysisData } from '@/app/workspace/[id]/page';
 
@@ -16,27 +17,7 @@ interface LawyerPrepTabProps {
 }
 
 export function LawyerPrepTab({ analysis, isReady }: LawyerPrepTabProps) {
-  const aiQuestions = analysis?.lawyer_questions || [];
-
-  const sampleQuestions = [
-    {
-      question: "Is the early termination clause (Section 8.2) demanding both deposit forfeiture AND 60 days liquidated damages enforceable under local landlord-tenant law?",
-      context: "Section 8.2 early termination clause",
-      page_number: 4,
-    },
-    {
-      question: "What language should I propose to limit my liability for property damage caused by external plumbing failures?",
-      context: "Clause 12.4 indemnification waiver",
-      page_number: 6,
-    },
-    {
-      question: "Does the 90-day non-renewal notice requirement comply with local housing ordinance standards?",
-      context: "Clause 8.1 auto-renewal",
-      page_number: 4,
-    },
-  ];
-
-  const questionsToDisplay = isReady && aiQuestions.length > 0 ? aiQuestions : sampleQuestions;
+  const questionsToDisplay = analysis?.lawyer_questions || [];
 
   return (
     <div className="space-y-6">
@@ -70,18 +51,30 @@ export function LawyerPrepTab({ analysis, isReady }: LawyerPrepTabProps) {
             <HelpCircle className="w-4 h-4 text-brand-400" />
             1. Recommended Questions to Ask Your Lawyer
           </h4>
-          <ul className="space-y-2 text-xs text-slate-200">
-            {questionsToDisplay.map((q, idx) => (
-              <li key={idx} className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 space-y-1">
-                <p className="font-medium text-slate-100">• &quot;{q.question}&quot;</p>
-                {q.context && (
-                  <p className="text-[11px] text-slate-400 font-mono">
-                    Context: {q.context} {q.page_number ? `(Page ${q.page_number})` : ''}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
+
+          {!isReady ? (
+            <div className="p-6 text-center rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+              <p className="text-xs text-slate-400">Run document analysis to generate lawyer preparation questions.</p>
+            </div>
+          ) : questionsToDisplay.length === 0 ? (
+            <div className="p-6 text-center rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+              <AlertCircle className="w-5 h-5 text-slate-500 mx-auto" />
+              <p className="text-xs text-slate-400">No lawyer-preparation questions were generated for this document.</p>
+            </div>
+          ) : (
+            <ul className="space-y-2 text-xs text-slate-200">
+              {questionsToDisplay.map((q, idx) => (
+                <li key={idx} className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 space-y-1">
+                  <p className="font-medium text-slate-100">• &quot;{q.question}&quot;</p>
+                  {q.context && (
+                    <p className="text-[11px] text-slate-400 font-mono">
+                      Context: {q.context} {q.page_number ? `(Page ${q.page_number})` : ''}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Clauses to Request Review */}
@@ -91,21 +84,22 @@ export function LawyerPrepTab({ analysis, isReady }: LawyerPrepTabProps) {
             2. High-Attention Clauses for Legal Review
           </h4>
           <div className="space-y-2 text-xs">
-            {(analysis?.attention_signals || []).slice(0, 3).map((sig, idx) => (
-              <div key={idx} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-                <div>
-                  <strong className="text-slate-200">{sig.title || 'Attention Point'}</strong>
-                  <p className="text-slate-400 text-[11px]">
-                    {sig.page_number ? `Page ${sig.page_number}` : ''} {sig.source_reference ? `• ${sig.source_reference}` : ''}
-                  </p>
+            {analysis?.attention_signals && analysis.attention_signals.length > 0 ? (
+              analysis.attention_signals.slice(0, 5).map((sig, idx) => (
+                <div key={idx} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+                  <div>
+                    <strong className="text-slate-200">{sig.title || 'Attention Point'}</strong>
+                    <p className="text-slate-400 text-[11px]">
+                      {sig.page_number ? `Page ${sig.page_number}` : ''} {sig.source_reference ? `• ${sig.source_reference}` : ''}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30 uppercase">
+                    {sig.severity || 'HIGH'}
+                  </span>
                 </div>
-                <span className="text-[10px] font-bold bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30 uppercase">
-                  {sig.severity || 'HIGH'}
-                </span>
-              </div>
-            ))}
-            {(!analysis?.attention_signals || analysis.attention_signals.length === 0) && (
-              <p className="text-xs text-slate-400 italic">Run AI analysis to automatically identify top clauses needing review.</p>
+              ))
+            ) : (
+              <p className="text-xs text-slate-400 italic">No specific high-attention clauses flagged for legal review.</p>
             )}
           </div>
         </div>

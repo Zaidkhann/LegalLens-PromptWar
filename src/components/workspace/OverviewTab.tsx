@@ -7,7 +7,6 @@ import {
   Calendar, 
   DollarSign, 
   Sparkles, 
-  Clock,
   ShieldCheck
 } from 'lucide-react';
 import { LegalAnalysisData } from '@/app/workspace/[id]/page';
@@ -21,23 +20,14 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
   const overview = analysis?.overview;
   const plainLanguage = analysis?.plain_language;
 
-  // Fallback demo data if AI analysis hasn't been run yet
-  const docType = overview?.document_type || "Residential Lease Agreement";
-  const purpose = overview?.purpose || "Standard residential lease agreement defining terms for occupancy, rent payments, maintenance rules, security deposit rules, and termination provisions.";
-  const parties = overview?.parties && overview.parties.length > 0 
-    ? overview.parties 
-    : ["Apex Property Management LLC (Lessor)", "Zaid Khan (Lessee)"];
-  const financialTerms = overview?.financial_terms && overview.financial_terms.length > 0 
-    ? overview.financial_terms 
-    : ["Monthly Rent: $2,400 / month", "Security Deposit: $4,800"];
-  const keyDates = overview?.key_dates && overview.key_dates.length > 0 
-    ? overview.key_dates 
-    : ["Lease Term: Nov 1, 2026 – Oct 31, 2028", "Renewal Notice: 90 Days prior (Aug 2, 2028)"];
-  const duration = overview?.duration || "24 Months (Fixed Term)";
-  const obligations = overview?.important_obligations && overview.important_obligations.length > 0
-    ? overview.important_obligations
-    : ["Pay monthly rent on time", "Maintain renter's insurance", "No unauthorized subletting"];
-  const summaryText = plainLanguage?.summary || overview?.summary || "This document is a residential rental agreement establishing occupancy terms, payment deadlines, and tenant rules.";
+  const docType = overview?.document_type || (isReady ? "Legal Document" : "Pending Analysis");
+  const purpose = overview?.purpose || "Not specified in the document.";
+  const parties = overview?.parties && overview.parties.length > 0 ? overview.parties : null;
+  const financialTerms = overview?.financial_terms && overview.financial_terms.length > 0 ? overview.financial_terms : null;
+  const keyDates = overview?.key_dates && overview.key_dates.length > 0 ? overview.key_dates : null;
+  const duration = overview?.duration || "Not specified in the document.";
+  const obligations = overview?.important_obligations && overview.important_obligations.length > 0 ? overview.important_obligations : null;
+  const summaryText = plainLanguage?.summary || overview?.summary || (isReady ? "Not specified in the document." : "Click 'Start Document Analysis' to extract and generate plain-language overview.");
   const takeaways = plainLanguage?.key_takeaways || [];
 
   return (
@@ -54,7 +44,7 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
               : 'bg-slate-800 text-slate-400 border-slate-700'
           }`}>
-            {isReady ? 'Grounded AI Analysis' : 'Sample Overview'}
+            {isReady ? 'Grounded AI Analysis' : 'Analysis Pending'}
           </span>
         </div>
         <h2 className="text-xl font-extrabold text-white">{docType}</h2>
@@ -72,9 +62,13 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
             PARTIES INVOLVED
           </div>
           <div className="space-y-1 text-xs">
-            {parties.map((p, idx) => (
-              <p key={idx} className="text-slate-200 font-medium">• {p}</p>
-            ))}
+            {parties ? (
+              parties.map((p, idx) => (
+                <p key={idx} className="text-slate-200 font-medium">• {p}</p>
+              ))
+            ) : (
+              <p className="text-slate-400 font-normal italic">Not specified in the document.</p>
+            )}
           </div>
         </div>
 
@@ -85,9 +79,13 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
             FINANCIAL TERMS
           </div>
           <div className="space-y-1 text-xs">
-            {financialTerms.map((f, idx) => (
-              <p key={idx} className="text-slate-200 font-medium">• {f}</p>
-            ))}
+            {financialTerms ? (
+              financialTerms.map((f, idx) => (
+                <p key={idx} className="text-slate-200 font-medium">• {f}</p>
+              ))
+            ) : (
+              <p className="text-slate-400 font-normal italic">Not specified in the document.</p>
+            )}
           </div>
         </div>
 
@@ -99,9 +97,13 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
           </div>
           <div className="space-y-1 text-xs">
             <p className="text-slate-200"><strong>Duration:</strong> {duration}</p>
-            {keyDates.map((d, idx) => (
-              <p key={idx} className="text-slate-200 font-medium">• {d}</p>
-            ))}
+            {keyDates ? (
+              keyDates.map((d, idx) => (
+                <p key={idx} className="text-slate-200 font-medium">• {d}</p>
+              ))
+            ) : (
+              <p className="text-slate-400 font-normal italic">Key dates: Not specified in the document.</p>
+            )}
           </div>
         </div>
 
@@ -112,9 +114,13 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
             PRIMARY OBLIGATIONS
           </div>
           <div className="space-y-1 text-xs">
-            {obligations.map((o, idx) => (
-              <p key={idx} className="text-slate-200 font-medium">• {o}</p>
-            ))}
+            {obligations ? (
+              obligations.map((o, idx) => (
+                <p key={idx} className="text-slate-200 font-medium">• {o}</p>
+              ))
+            ) : (
+              <p className="text-slate-400 font-normal italic">Not specified in the document.</p>
+            )}
           </div>
         </div>
       </div>
@@ -127,7 +133,7 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
             Plain-Language Executive Summary
           </h3>
           <span className="text-[10px] text-slate-400 font-mono">
-            {isReady ? 'Gemini 2.5 Structured Output' : 'Sample Preview'}
+            {isReady ? 'Grounded AI Output' : 'Pending Analysis'}
           </span>
         </div>
 
