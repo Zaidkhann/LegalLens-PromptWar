@@ -37,7 +37,7 @@ export function AttentionTab({ analysis, isReady, onSelectClausePage }: Attentio
         {!isReady ? (
           <div className="p-8 text-center rounded-2xl bg-slate-900/50 border border-slate-800 space-y-2">
             <AlertTriangle className="w-6 h-6 text-amber-400 mx-auto" />
-            <p className="text-xs text-slate-300">Run document analysis to extract attention and risk points.</p>
+            <p className="text-xs text-slate-300">Pending Analysis...</p>
           </div>
         ) : signalsToDisplay.length === 0 ? (
           <div className="p-8 text-center rounded-2xl bg-slate-900/50 border border-slate-800 space-y-3">

@@ -54,7 +54,7 @@ export function LawyerPrepTab({ analysis, isReady }: LawyerPrepTabProps) {
 
           {!isReady ? (
             <div className="p-6 text-center rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
-              <p className="text-xs text-slate-400">Run document analysis to generate lawyer preparation questions.</p>
+              <p className="text-xs text-slate-400">Pending Analysis...</p>
             </div>
           ) : questionsToDisplay.length === 0 ? (
             <div className="p-6 text-center rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">

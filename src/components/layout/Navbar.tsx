@@ -64,12 +64,7 @@ export function Navbar() {
 
           {/* Actions */}
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/workspace/demo"
-              className="text-xs text-slate-400 hover:text-slate-200 px-3 py-2 rounded-lg border border-slate-800 hover:border-slate-700 transition-colors"
-            >
-              Demo Workspace
-            </Link>
+
             <Link
               href="/upload"
               className="flex items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-glow transition-all active:scale-95"

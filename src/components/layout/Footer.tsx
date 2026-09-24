@@ -20,10 +20,10 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-slate-200 mb-3 text-sm">Product Features</h4>
             <ul className="space-y-2">
-              <li><Link href="/workspace/demo" className="hover:text-slate-200">Plain-Language Summaries</Link></li>
-              <li><Link href="/workspace/demo" className="hover:text-slate-200">Clause Intelligence</Link></li>
-              <li><Link href="/workspace/demo" className="hover:text-slate-200">Attention Signals</Link></li>
-              <li><Link href="/workspace/demo" className="hover:text-slate-200">Grounded Document Q&A</Link></li>
+              <li><Link href="/upload" className="hover:text-slate-200">Plain-Language Summaries</Link></li>
+              <li><Link href="/upload" className="hover:text-slate-200">Clause Intelligence</Link></li>
+              <li><Link href="/upload" className="hover:text-slate-200">Attention Signals</Link></li>
+              <li><Link href="/upload" className="hover:text-slate-200">Grounded Document Q&A</Link></li>
             </ul>
           </div>
 

@@ -44,12 +44,11 @@ interface ChatTabProps {
 }
 
 const DEFAULT_SUGGESTED_QUESTIONS = [
-  "What is the termination condition?",
-  "What are my payment obligations?",
-  "How long does this agreement last?",
-  "What happens if I miss a payment?",
-  "Who is responsible for repairs or maintenance?",
-  "Are there any important deadlines?"
+  "What are my main obligations?",
+  "What happens if I terminate the agreement?",
+  "What deadlines should I know about?",
+  "Which clauses should I clarify?",
+  "Who is responsible for repairs or maintenance?"
 ];
 
 export function ChatTab({ documentId, onSelectCitation, analysisData }: ChatTabProps) {
@@ -84,16 +83,16 @@ export function ChatTab({ documentId, onSelectCitation, analysisData }: ChatTabP
     const suggestions: string[] = [];
 
     if (analysisData.overview?.important_obligations?.length) {
-      suggestions.push("What are my main obligations under this contract?");
+      suggestions.push("What are my main obligations?");
     }
     if (analysisData.attention_signals?.length) {
-      suggestions.push("What potential risks or attention signals exist?");
+      suggestions.push("Which clauses should I clarify?");
     }
     if (analysisData.important_clauses?.length) {
-      suggestions.push("What are the key termination conditions?");
+      suggestions.push("What happens if I terminate the agreement?");
     }
     if (analysisData.important_dates?.length) {
-      suggestions.push("What are the important dates and deadlines?");
+      suggestions.push("What deadlines should I know about?");
     }
 
     if (suggestions.length < 4) {

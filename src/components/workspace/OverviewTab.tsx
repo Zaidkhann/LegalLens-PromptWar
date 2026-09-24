@@ -21,13 +21,13 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
   const plainLanguage = analysis?.plain_language;
 
   const docType = overview?.document_type || (isReady ? "Legal Document" : "Pending Analysis");
-  const purpose = overview?.purpose || "Not specified in the document.";
+  const purpose = overview?.purpose || (isReady ? "Not specified in the document." : "Pending Analysis...");
   const parties = overview?.parties && overview.parties.length > 0 ? overview.parties : null;
   const financialTerms = overview?.financial_terms && overview.financial_terms.length > 0 ? overview.financial_terms : null;
   const keyDates = overview?.key_dates && overview.key_dates.length > 0 ? overview.key_dates : null;
-  const duration = overview?.duration || "Not specified in the document.";
+  const duration = overview?.duration || (isReady ? "Not specified in the document." : "Pending Analysis...");
   const obligations = overview?.important_obligations && overview.important_obligations.length > 0 ? overview.important_obligations : null;
-  const summaryText = plainLanguage?.summary || overview?.summary || (isReady ? "Not specified in the document." : "Click 'Start Document Analysis' to extract and generate plain-language overview.");
+  const summaryText = plainLanguage?.summary || overview?.summary || (isReady ? "Not specified in the document." : "Extracting and generating plain-language overview...");
   const takeaways = plainLanguage?.key_takeaways || [];
 
   return (
@@ -67,7 +67,7 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
                 <p key={idx} className="text-slate-200 font-medium">• {p}</p>
               ))
             ) : (
-              <p className="text-slate-400 font-normal italic">Not specified in the document.</p>
+              <p className="text-slate-400 font-normal italic">{isReady ? "Not specified in the document." : "Pending Analysis..."}</p>
             )}
           </div>
         </div>
@@ -84,7 +84,7 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
                 <p key={idx} className="text-slate-200 font-medium">• {f}</p>
               ))
             ) : (
-              <p className="text-slate-400 font-normal italic">Not specified in the document.</p>
+              <p className="text-slate-400 font-normal italic">{isReady ? "Not specified in the document." : "Pending Analysis..."}</p>
             )}
           </div>
         </div>
@@ -102,7 +102,7 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
                 <p key={idx} className="text-slate-200 font-medium">• {d}</p>
               ))
             ) : (
-              <p className="text-slate-400 font-normal italic">Key dates: Not specified in the document.</p>
+              <p className="text-slate-400 font-normal italic">Key dates: {isReady ? "Not specified in the document." : "Pending Analysis..."}</p>
             )}
           </div>
         </div>
@@ -119,7 +119,7 @@ export function OverviewTab({ analysis, isReady }: OverviewTabProps) {
                 <p key={idx} className="text-slate-200 font-medium">• {o}</p>
               ))
             ) : (
-              <p className="text-slate-400 font-normal italic">Not specified in the document.</p>
+              <p className="text-slate-400 font-normal italic">{isReady ? "Not specified in the document." : "Pending Analysis..."}</p>
             )}
           </div>
         </div>

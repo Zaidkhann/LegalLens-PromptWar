@@ -84,7 +84,7 @@ export function ClausesTab({ analysis, isReady, onSelectClausePage }: ClausesTab
         {!isReady ? (
           <div className="p-8 text-center rounded-2xl bg-slate-900/50 border border-slate-800 space-y-2">
             <FileText className="w-6 h-6 text-brand-400 mx-auto" />
-            <p className="text-xs text-slate-300">Run document analysis to extract important legal clauses.</p>
+            <p className="text-xs text-slate-300">Pending Analysis...</p>
           </div>
         ) : filteredClauses.length === 0 ? (
           <div className="p-8 text-center rounded-2xl bg-slate-900/50 border border-slate-800 space-y-2">
