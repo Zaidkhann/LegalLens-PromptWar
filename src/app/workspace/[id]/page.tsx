@@ -26,7 +26,7 @@ import { ChatTab } from '@/components/workspace/ChatTab';
 import { ChecklistTab } from '@/components/workspace/ChecklistTab';
 import { LawyerPrepTab } from '@/components/workspace/LawyerPrepTab';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
 
 // ─── Analysis types matching backend schemas ─────────────────────────────────
 
@@ -173,6 +173,38 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
     fetchDocumentData();
   }, [documentId]);
 
+  // ── Trigger analysis ───────────────────────────────────────────────────────
+  const handleStartAnalysis = useCallback(async () => {
+    if (!documentId) return;
+    setAnalysisStatus('analyzing');
+    setAnalysisError(null);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/documents/${documentId}/analyze`, {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Analysis request failed.');
+      }
+
+      // Analysis completed, fetch results
+      const resAnalysis = await fetch(`${API_BASE_URL}/api/v1/documents/${documentId}/analysis`);
+      if (resAnalysis.ok) {
+        const data: FullAnalysisResponse = await resAnalysis.json();
+        setAnalysisStatus(data.analysis_status);
+        setAnalysisDisclaimer(data.disclaimer);
+        if (data.analysis) {
+          setAnalysisData(data.analysis);
+        }
+      }
+    } catch (err: any) {
+      setAnalysisStatus('failed');
+      setAnalysisError(err.message || 'An error occurred during AI analysis.');
+    }
+  }, [documentId]);
+
   // ── Fetch analysis data ────────────────────────────────────────────────────
   const fetchAnalysis = useCallback(async () => {
     if (!documentId) return;
@@ -184,15 +216,19 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
       setAnalysisDisclaimer(data.disclaimer);
       if (data.analysis) {
         setAnalysisData(data.analysis);
+      } else if (data.analysis_status === 'not_started') {
+        // Auto-start analysis on first workspace load
+        handleStartAnalysis();
       }
     } catch {
       // Silently fail — will retry
     }
-  }, [documentId]);
+  }, [documentId, handleStartAnalysis]);
 
   useEffect(() => {
     fetchAnalysis();
   }, [fetchAnalysis]);
+
 
   // ── Polling while analyzing ────────────────────────────────────────────────
   useEffect(() => {
@@ -228,29 +264,6 @@ export default function DocumentWorkspacePage({ params }: { params: { id: string
     return () => timers.forEach(clearTimeout);
   }, [analysisStatus]);
 
-  // ── Trigger analysis ───────────────────────────────────────────────────────
-  const handleStartAnalysis = async () => {
-    if (!documentId) return;
-    setAnalysisStatus('analyzing');
-    setAnalysisError(null);
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/documents/${documentId}/analyze`, {
-        method: 'POST',
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Analysis request failed.');
-      }
-
-      // Analysis completed, fetch results
-      await fetchAnalysis();
-    } catch (err: any) {
-      setAnalysisStatus('failed');
-      setAnalysisError(err.message || 'An error occurred during AI analysis.');
-    }
-  };
 
   const handleSelectCitation = (page: number, sectionId: string) => {
     setHighlightedSection(sectionId);
