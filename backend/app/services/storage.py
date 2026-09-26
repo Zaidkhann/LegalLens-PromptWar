@@ -20,23 +20,22 @@ DB_PATH = os.path.join(STORAGE_DIR, "db.sqlite3")
 
 
 def get_db_connection() -> sqlite3.Connection:
-    """Helper to open a SQLite connection with performance PRAGMAs tuned for high concurrency."""
+    """Helper to open a SQLite connection with 30s timeout and WAL support."""
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL;")
-    cursor.execute("PRAGMA synchronous=NORMAL;")
-    cursor.execute("PRAGMA temp_store=MEMORY;")
-    cursor.execute("PRAGMA cache_size=-64000;")  # 64MB memory cache
-    cursor.execute("PRAGMA mmap_size=268435456;")  # 256MB mmap I/O
     return conn
 
 
 def init_db():
-    """Ensure storage directory exists and database tables are initialized with high-performance indexes."""
+    """Ensure storage directory exists and database tables are initialized."""
     os.makedirs(UPLOADS_DIR, exist_ok=True)
     
     with get_db_connection() as conn:
         cursor = conn.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL;")
+            cursor.execute("PRAGMA synchronous=NORMAL;")
+        except Exception:
+            pass  # Fallback gracefully if WAL is disallowed by filesystem
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS documents (
                 id TEXT PRIMARY KEY,
