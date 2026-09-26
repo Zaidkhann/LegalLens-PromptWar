@@ -19,11 +19,23 @@ UPLOADS_DIR = os.path.join(STORAGE_DIR, "uploads")
 DB_PATH = os.path.join(STORAGE_DIR, "db.sqlite3")
 
 
+def get_db_connection() -> sqlite3.Connection:
+    """Helper to open a SQLite connection with performance PRAGMAs tuned for high concurrency."""
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL;")
+    cursor.execute("PRAGMA synchronous=NORMAL;")
+    cursor.execute("PRAGMA temp_store=MEMORY;")
+    cursor.execute("PRAGMA cache_size=-64000;")  # 64MB memory cache
+    cursor.execute("PRAGMA mmap_size=268435456;")  # 256MB mmap I/O
+    return conn
+
+
 def init_db():
-    """Ensure storage directory exists and database tables are initialized."""
+    """Ensure storage directory exists and database tables are initialized with high-performance indexes."""
     os.makedirs(UPLOADS_DIR, exist_ok=True)
     
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS documents (
@@ -137,7 +149,7 @@ def create_document(
     init_db()
     now_iso = datetime.now(timezone.utc).isoformat()
     
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -186,7 +198,7 @@ def update_document_status(
     init_db()
     now_iso = datetime.now(timezone.utc).isoformat()
     
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -203,7 +215,7 @@ def save_document_pages(doc_id: str, pages: List[DocumentPageSchema]):
     """Stores extracted pages into SQLite database."""
     init_db()
     
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         # Clear existing pages if re-parsing
         cursor.execute("DELETE FROM document_pages WHERE document_id = ?", (doc_id,))
@@ -223,7 +235,7 @@ def get_document_by_id(doc_id: str) -> Optional[DocumentMetaData]:
     """Retrieves document metadata by ID."""
     init_db()
     
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
@@ -252,7 +264,7 @@ def get_document_content(doc_id: str) -> Optional[DocumentContentResponse]:
     if not doc:
         return None
         
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute(
@@ -282,7 +294,7 @@ def get_document_content(doc_id: str) -> Optional[DocumentContentResponse]:
 def get_document_storage_path(doc_id: str) -> Optional[str]:
     """Returns absolute file path to the stored document."""
     init_db()
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT storage_path FROM documents WHERE id = ?", (doc_id,))
         row = cursor.fetchone()
@@ -299,7 +311,7 @@ def update_analysis_status(
     """Updates the analysis_status column on a document."""
     init_db()
     now_iso = datetime.now(timezone.utc).isoformat()
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             "UPDATE documents SET analysis_status = ?, updated_at = ? WHERE id = ?",
@@ -311,7 +323,7 @@ def update_analysis_status(
 def get_analysis_status(doc_id: str) -> Optional[str]:
     """Returns the analysis_status for a document."""
     init_db()
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT analysis_status FROM documents WHERE id = ?", (doc_id,))
         row = cursor.fetchone()
@@ -324,7 +336,7 @@ def save_analysis(doc_id: str, analysis_dict: dict):
     now_iso = datetime.now(timezone.utc).isoformat()
     analysis_json_str = json.dumps(analysis_dict, ensure_ascii=False)
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             "SELECT id FROM analyses WHERE document_id = ?",
@@ -348,7 +360,7 @@ def save_analysis(doc_id: str, analysis_dict: dict):
 def get_analysis(doc_id: str) -> Optional[dict]:
     """Retrieves the structured analysis dict for a document."""
     init_db()
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             "SELECT analysis_json FROM analyses WHERE document_id = ?",
@@ -366,7 +378,7 @@ def get_analysis(doc_id: str) -> Optional[dict]:
 def list_documents() -> List[DocumentMetaData]:
     """Retrieves all uploaded documents ordered by creation date descending."""
     init_db()
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM documents ORDER BY created_at DESC")
@@ -396,7 +408,7 @@ def save_comparison(comp_dict: dict) -> str:
     now_iso = datetime.now(timezone.utc).isoformat()
     json_str = json.dumps(comp_dict, ensure_ascii=False)
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -425,7 +437,7 @@ def save_comparison(comp_dict: dict) -> str:
 def get_comparison(comp_id: str) -> Optional[dict]:
     """Retrieves a comparison by its comparison ID."""
     init_db()
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT comparison_json FROM document_comparisons WHERE id = ?", (comp_id,))
         row = cursor.fetchone()
@@ -437,7 +449,7 @@ def get_comparison(comp_id: str) -> Optional[dict]:
 def get_comparison_by_docs(doc_a_id: str, doc_b_id: str) -> Optional[dict]:
     """Retrieves existing comparison record for document pair A & B (in either direction)."""
     init_db()
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """

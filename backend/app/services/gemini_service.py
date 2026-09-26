@@ -79,13 +79,27 @@ def _parse_analysis_response(raw_text: str) -> LegalAnalysis:
     return LegalAnalysis.model_validate(parsed)
 
 
+import hashlib
+
+# In-memory cache for document analysis {content_hash: LegalAnalysis}
+_ANALYSIS_CACHE: dict[str, LegalAnalysis] = {}
+MAX_ANALYSIS_CACHE_SIZE = 50
+
+
 async def analyze_document(pages: list[DocumentPageSchema]) -> LegalAnalysis:
     """
     Sends extracted document pages to Gemini for structured legal analysis.
     Returns a validated LegalAnalysis model.
+    Caches result by document text hash to maximize efficiency.
     """
-    client = _get_client()
     document_text = format_document_for_prompt(pages)
+    content_hash = hashlib.sha256(document_text.encode('utf-8')).hexdigest()
+
+    if content_hash in _ANALYSIS_CACHE:
+        logger.info(f"Analysis cache hit for hash '{content_hash[:12]}...' — returning cached result.")
+        return _ANALYSIS_CACHE[content_hash]
+
+    client = _get_client()
     prompt = build_analysis_prompt(document_text)
 
     model = PRIMARY_MODEL
@@ -111,6 +125,9 @@ async def analyze_document(pages: list[DocumentPageSchema]) -> LegalAnalysis:
 
             analysis = _parse_analysis_response(raw_text)
             logger.info("Gemini analysis completed and validated successfully.")
+            if len(_ANALYSIS_CACHE) >= MAX_ANALYSIS_CACHE_SIZE:
+                _ANALYSIS_CACHE.pop(next(iter(_ANALYSIS_CACHE)))
+            _ANALYSIS_CACHE[content_hash] = analysis
             return analysis
 
         except Exception as e:

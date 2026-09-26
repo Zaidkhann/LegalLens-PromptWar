@@ -20,9 +20,15 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased`}>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-brand-600 focus:text-white focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-white"
+        >
+          Skip to main content
+        </a>
         <DisclaimerBanner />
         <Navbar />
-        <main className="flex-1 flex flex-col">
+        <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col outline-none">
           {children}
         </main>
         <Footer />

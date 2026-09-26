@@ -32,6 +32,11 @@ from app.core.prompts import build_comparison_prompt
 logger = logging.getLogger(__name__)
 
 
+# In-memory comparison cache: {(sorted_doc_id_pair): DocumentComparison}
+_COMPARISON_CACHE: Dict[tuple, DocumentComparison] = {}
+MAX_COMPARISON_CACHE_SIZE = 50
+
+
 class ComparisonService:
     """
     Service managing document comparison workflow.
@@ -48,6 +53,11 @@ class ComparisonService:
         """
         if document_a_id == document_b_id:
             raise ValueError("Document A and Document B cannot be the same document.")
+
+        cache_key = (min(document_a_id, document_b_id), max(document_a_id, document_b_id))
+        if not force_recompare and cache_key in _COMPARISON_CACHE:
+            logger.info(f"In-memory comparison cache hit for pair '{document_a_id}' / '{document_b_id}'.")
+            return _COMPARISON_CACHE[cache_key]
 
         # 1. Verify access and metadata for both documents
         doc_a = get_document_by_id(document_a_id)
@@ -247,8 +257,11 @@ class ComparisonService:
             changes=final_changes,
         )
 
-        # 7. Persist comparison to DB
+        # 7. Persist comparison to DB & in-memory cache
         save_comparison(doc_comp.model_dump())
+        if len(_COMPARISON_CACHE) >= MAX_COMPARISON_CACHE_SIZE:
+            _COMPARISON_CACHE.pop(next(iter(_COMPARISON_CACHE)))
+        _COMPARISON_CACHE[cache_key] = doc_comp
         return doc_comp
 
 

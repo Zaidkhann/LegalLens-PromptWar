@@ -22,6 +22,13 @@ from app.core.prompts import build_qa_prompt
 logger = logging.getLogger(__name__)
 
 
+import hashlib
+
+# In-memory cache for Q&A responses: {(doc_id, question_hash): QAResponse}
+_QA_CACHE: Dict[tuple, QAResponse] = {}
+MAX_QA_CACHE_SIZE = 100
+
+
 class RAGService:
     """
     RAG engine orchestrating document-grounded legal Q&A.
@@ -34,6 +41,7 @@ class RAGService:
     ):
         self.embedding_service = embedding_service or EmbeddingService()
         self.vector_store = vector_store or VectorStore()
+
 
     def ensure_document_indexed(self, document_id: str) -> bool:
         """
@@ -63,6 +71,7 @@ class RAGService:
         """
         Processes a user question about a document, retrieves relevant context,
         and generates a grounded answer via Gemini API.
+        Caches results per (document_id, question) for maximum speed.
         """
         # Validate and sanitize question input
         sanitized_q = question.strip()
@@ -71,6 +80,12 @@ class RAGService:
         for pat in injection_patterns:
             if pat in sanitized_q.lower():
                 sanitized_q = sanitized_q.replace(pat, f"[filtered: {pat}]")
+
+        q_hash = hashlib.sha256(sanitized_q.lower().encode('utf-8')).hexdigest()
+        cache_key = (document_id, q_hash)
+        if cache_key in _QA_CACHE:
+            logger.info(f"Q&A cache hit for document '{document_id}' — returning cached answer.")
+            return _QA_CACHE[cache_key]
 
         qa_req = QARequest(question=sanitized_q)
 
@@ -198,7 +213,7 @@ class RAGService:
                 )
             )
 
-        return QAResponse(
+        res = QAResponse(
             success=True,
             question=qa_req.question,
             answer=legal_answer.answer,
@@ -207,6 +222,11 @@ class RAGService:
             not_found=legal_answer.not_found,
             debug_info=debug_info,
         )
+
+        if len(_QA_CACHE) >= MAX_QA_CACHE_SIZE:
+            _QA_CACHE.pop(next(iter(_QA_CACHE)))
+        _QA_CACHE[cache_key] = res
+        return res
 
 
 # Singleton instance

@@ -17,7 +17,7 @@ from typing import List, Optional, Dict, Tuple
 from datetime import datetime, timezone
 from pydantic import BaseModel
 
-from app.services.storage import DB_PATH, init_db
+from app.services.storage import DB_PATH, init_db, get_db_connection
 from app.services.chunker import DocumentChunk
 from app.services.embedding_service import EmbeddingService
 
@@ -87,7 +87,7 @@ class VectorStore:
 
     def is_document_indexed(self, document_id: str) -> bool:
         """Returns True if the document has indexed vector chunks."""
-        with sqlite3.connect(self.db_path) as conn:
+        with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT COUNT(*) FROM document_chunks WHERE document_id = ?",
@@ -111,7 +111,7 @@ class VectorStore:
         if document_id in self._embedding_cache:
             return self._embedding_cache[document_id]
 
-        with sqlite3.connect(self.db_path) as conn:
+        with get_db_connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -161,7 +161,7 @@ class VectorStore:
 
         now_iso = datetime.now(timezone.utc).isoformat()
 
-        with sqlite3.connect(self.db_path) as conn:
+        with get_db_connection() as conn:
             cursor = conn.cursor()
             # Clear previous chunks for document_id
             cursor.execute("DELETE FROM document_chunks WHERE document_id = ?", (document_id,))
