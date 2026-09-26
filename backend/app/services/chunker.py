@@ -39,7 +39,7 @@ def _extract_section_heading(text: str, default_section: Optional[str] = None) -
         for p in patterns:
             match = re.search(p, line_clean)
             if match:
-                return match.group(1).strip()
+                return match.group(0).strip()
     return default_section
 
 
@@ -96,6 +96,29 @@ def chunk_document_pages(
                 sentences = re.split(r'(?<=[.!?])\s+', para)
                 sent_buffer = ""
                 for sent in sentences:
+                    # If a single sentence itself exceeds max_chunk_chars, hard-split by word boundaries
+                    if len(sent) > max_chunk_chars:
+                        words = sent.split(" ")
+                        word_buf = ""
+                        for w in words:
+                            if word_buf and (len(word_buf) + len(w) + 1 > max_chunk_chars):
+                                chunk_id = f"{document_id}_c{chunk_index}"
+                                chunks.append(
+                                    DocumentChunk(
+                                        chunk_id=chunk_id,
+                                        document_id=document_id,
+                                        chunk_index=chunk_index,
+                                        page_number=page_num,
+                                        section=current_section or page_section,
+                                        source_text=word_buf,
+                                    )
+                                )
+                                chunk_index += 1
+                                word_buf = ""
+                            word_buf = f"{word_buf} {w}".strip() if word_buf else w
+                        if word_buf:
+                            sent = word_buf
+
                     if sent_buffer and (len(sent_buffer) + len(sent) > max_chunk_chars):
                         chunk_id = f"{document_id}_c{chunk_index}"
                         chunks.append(
